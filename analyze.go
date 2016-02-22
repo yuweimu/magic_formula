@@ -153,21 +153,21 @@ func main() {
 
 	  priceMap, err := DbLoadPrice(tradingDate)
 	  if err != nil {
-	      return
+	      os.Exit(1)
     }
 
     if len(*priceMap) <= 0 {
-        fmt.Printf("trading date %s has no price info", tradingDate)
-        return
+        fmt.Printf("trading date %s has no price info\r\n", tradingDate)
+	      os.Exit(1)
     }
 
 	  detailList, err := DbLoadDetail()
 	  if err != nil {
-	      return
+	      os.Exit(1)
     }
     if len(detailList) <= 0 {
-        fmt.Printf("no detail info")
-        return
+        fmt.Printf("no detail info\r\n")
+	      os.Exit(1)
     }
     fmt.Printf("%s", gHtmlHead)
     validDetailList := DetailList{}
@@ -193,7 +193,8 @@ func main() {
        //           detail.pb, detail.pe, detail.roe1, detail.roe3, detail.code)
          fmt.Printf("<span style=\"color:#441\">%d</span> %4.3f <span style=\"color:#292\">pb=%4.3f</span> pe=%4.3f " +
                     "<br /> &nbsp; &nbsp; <span style=\"color:#922\">roe1=%4.3f</span> roe3=%4.3f " + 
-                    "<a href=\"http://stocks.sina.cn/sh/?code=%s\">%s</a><br />\r\n",
+                    //"<a href=\"http://stocks.sina.cn/sh/?code=%s\">%s</a><br />\r\n",
+                    "<a href=\"http://finance.sina.com.cn/realstock/company/%s/nc.shtml\">%s</a><br />\r\n",
                     rank + 1, detail.Score(), detail.pb, detail.pe, detail.roe1, detail.roe3,
                     FullCode(detail.code), detail.name)
     }

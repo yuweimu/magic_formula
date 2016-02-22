@@ -101,6 +101,25 @@ func LoadStockCodes() (stockCodes []string, err error) {
     return stockCodes, nil
 }
 
+func ClearDB(tradingDate string) error {
+    db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/magic_formula")
+    defer db.Close()
+
+    statement, err := db.Prepare("DELETE FROM stock_price WHERE trading_date=?")
+    if err != nil {
+        fmt.Printf("WriteDB db.Prepare err %s", err.Error())
+        return err
+    }
+
+    _, err = statement.Exec(tradingDate)
+    if err != nil {
+        fmt.Printf("WriteDB db.Exec err %s", err.Error())
+        return err
+    }
+
+    return nil
+}
+
 func WriteDB(stockCode, stockName, tradingDate string, price float64) error {
     db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/magic_formula")
     defer db.Close()
@@ -140,17 +159,15 @@ func main() {
     }
     fmt.Printf("total stock codes %d\r\n", len(codes))
 
-	//code := "601166"
-	//if len(os.Args) > 1 {
-  //  code = os.Args[1]
-  //}
-//  for i := 0; i < 5; i++ {
-//      code := codes[i * 500]
+    dbClearFlag := 0
+    //for i := 0; i < 5; i++ {
+    //    code := codes[i * 500]
     for i := 0; i < len(codes); i++ {
         code := codes[i]
-        name, price, tradingDate := CrawlPrice(code)
+          name, price, tradingDate := CrawlPrice(code)
+
         if len(name) <= 2 {
-           fmt.Printf("CrawlError code=%s", code)
+           fmt.Printf("CrawlError code=%s\r\n", code)
            continue
         }
         fmt.Printf("CrawlOk code=%s %s %s %s\r\n", code, name, price, tradingDate)
@@ -159,8 +176,14 @@ func main() {
             fPrice = 0.0
         }
 
+        if dbClearFlag == 0 {
+             ClearDB(tradingDate)
+             dbClearFlag = 1
+             time.Sleep(1000 * time.Millisecond)
+        }
+
         WriteDB(code, name, tradingDate, fPrice)
-        interval := 10 + rand.Intn(50)
+        interval := 100 + rand.Intn(100)
         time.Sleep(time.Duration(interval) * time.Millisecond)
     }
 }

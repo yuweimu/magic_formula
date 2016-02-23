@@ -56,7 +56,7 @@ var testF10 = `
 </table>
 `
 
-func WriteDB(stockCode, stockName, year string, profit, bookValue, roe, grossProfitRate, netProfitRate float64, raw_data string) error {
+func WriteDB(stockCode, stockName, year string, profit, grossProfitRate, bookValue, roe, roa float64) error {
     db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/magic_formula")
     defer db.Close()
     if err != nil {
@@ -64,16 +64,16 @@ func WriteDB(stockCode, stockName, year string, profit, bookValue, roe, grossPro
         return err
     }
 
-    statement, err := db.Prepare("INSERT INTO stock_f10 SET stock_code=?,stock_name=?," +
+    statement, err := db.Prepare("INSERT INTO hk_stock_f10 SET stock_code=?,stock_name=?," +
                                  "fiscal_year=?,earning_per_share=?,book_value_per_share=?," +
-                                 "gross_profit_rate=?,net_profit_rate=?,ROE=?,raw_data=?")
+                                 "gross_profit_rate=?,ROE=?,ROA=?")
     if err != nil {
         fmt.Printf("WriteDB db.Prepare err %s", err.Error())
         return err
     }
 
     res, err := statement.Exec(stockCode, stockName, year, profit, bookValue,
-                               grossProfitRate, netProfitRate, roe, raw_data)
+                               grossProfitRate, roe, roa)
     if err != nil {
         fmt.Printf("WriteDB db.Exec err %s", err.Error())
         return err
@@ -99,22 +99,6 @@ func ParseF10Field(list[]string, offset int, hasMore *bool) float64 {
         }
     }
     return 0.0
-}
-func PersistF10(stockCode, stockName string, profitList, bookValueList, roeList, grossProfitRateList, netProfitRateList []string, raw_data string) {
-    for i := 0; i < len(YearList); i++ {
-        hasMore := false
-        year := YearList[i]
-        profit := ParseF10Field(profitList, i, &hasMore)
-        bookValue := ParseF10Field(bookValueList, i, &hasMore)
-        roe := ParseF10Field(roeList, i, &hasMore)
-        grossProfitRate := ParseF10Field(grossProfitRateList, i, &hasMore)
-        netProfitRate := ParseF10Field(netProfitRateList, i, &hasMore)
-        fmt.Printf("xxxx %.3f,%.3f,%.3f,%.3f,%.3f\r\n", profit, bookValue, roe, grossProfitRate, netProfitRate)
-        if hasMore {
-            WriteDB(stockCode, stockName, year, profit, bookValue, roe, grossProfitRate, netProfitRate, raw_data)
-            fmt.Printf("hasMore %d\r\n", i)
-        }
-    }
 }
 
 func ExtractTrLine(trSel *goquery.Selection) float64 {
@@ -176,6 +160,7 @@ func CrawlF10(name, code string) {
     grossProfitRate := 0.0
     roa := 0.0
     roe := 0.0
+    bookValue := 0.0
     doc.Find("#cwzb tr").Each(func(i int, trSel *goquery.Selection) {
         if i == 1 {
             profit = ExtractTrLine(trSel)
@@ -190,11 +175,13 @@ func CrawlF10(name, code string) {
             roe = ExtractTrLine(trSel)
         }
     })
+    if roe > 0.01 {
+        bookValue = profit * 100.0 / roe
+    }
 
 
     fmt.Printf("profit=%.3f,grossProfitRate=%.3f,roa=%.3f,roe=%.3f", profit, grossProfitRate, roa, roe)
-    return
-  // PersistF10(code, name, profitList, bookValueList, roeList, grossProfitRateList, netProfitRateList, body)
+    WriteDB(code, name, "2014", profit, grossProfitRate, bookValue, roe, roa)
 }
 
 func FullCode(code string) string {

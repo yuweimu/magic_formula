@@ -27,16 +27,37 @@ type Detail struct {
     name string
     earning float64
     bookValue float64
+    share_split float64
     roe3 float64
 
     pb float64
     pe float64
     roe1 float64
 }
+func (detail Detail) Pb() float64 {
+	if detail.share_split > 0.001 {
+		return detail.share_split * detail.pb
+  }
+  return detail.pb
+}
+func (detail Detail) Pe() float64 {
+	if detail.share_split > 0.01 {
+		return detail.share_split * detail.pe
+  }
+  return detail.pe
+}
+
+func (detail Detail) RankColor() string {
+	if detail.share_split > 0.01 {
+		return "green"
+  }
+	return "red"
+}
+
 func (detail Detail) Score() float64 {
 	  roe1 := math.Max(detail.roe1, 0.0001)
 	  roe3 := math.Max(detail.roe3, 0.0001)
-	  pb := detail.pb
+	  pb := detail.Pb()
 	  if pb < 0.001 {
 	      pb = 10000
     }
@@ -86,7 +107,7 @@ func DbLoadDetail() (result []*Detail, err error) {
         return nil, err
     }
 
-    sql := `SELECT stock_code,stock_name,earning_per_share,book_value_per_share,sum(ROE)/3 AS average_ROE from fiscal_year_2014 
+    sql := `SELECT stock_code,stock_name,earning_per_share,book_value_per_share,share_split,sum(ROE)/3 AS average_ROE from stock_f10
             WHERE fiscal_year IN ('2012', '2013', '2014') AND stock_name != '-' 
             GROUP BY stock_code ORDER BY average_ROE DESC 
             limit 1000;`
@@ -99,7 +120,7 @@ func DbLoadDetail() (result []*Detail, err error) {
     for rows.Next() {
         var detail = Detail{}
 
-        err = rows.Scan(&detail.code, &detail.name, &detail.earning, &detail.bookValue, &detail.roe3)
+        err = rows.Scan(&detail.code, &detail.name, &detail.earning, &detail.bookValue, &detail.share_split, &detail.roe3)
         if err != nil {
             fmt.Printf("DbLoadDetail err %s\r\n", err.Error())
             return nil, err
@@ -117,8 +138,8 @@ var gHtmlHead = `<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <style type="text/css">
 body{
-    font-size:14px;
-    line-height:20px;
+    font-size:18px;
+    line-height:42px;
     font-weight:bold;
     font-family:"Courier New", Verdana, Arial, Sans-serif;
 }
@@ -191,12 +212,13 @@ func main() {
     for rank, detail := range validDetailList {
        //fmt.Printf("%4.3f pb=%4.3f pe=%4.3f roe1=%4.3f roe3=%4.3f %s\r\n", detail.Score(),
        //           detail.pb, detail.pe, detail.roe1, detail.roe3, detail.code)
-         fmt.Printf("<span style=\"color:#441\">%d</span> %4.3f <span style=\"color:#292\">pb=%4.3f</span> pe=%4.3f " +
-                    "<br /> &nbsp; &nbsp; <span style=\"color:#922\">roe1=%4.3f</span> roe3=%4.3f " + 
+         fmt.Printf("<span style=\"color:%s\">%d</span> %4.3f <span style=\"color:#292\">pb=%4.3f</span> pe=%4.3f " +
+                    " <span style=\"color:#922\">roe1=%4.3f</span> <br /> &nbsp; &nbsp; roe3=%4.3f " + 
                     //"<a href=\"http://stocks.sina.cn/sh/?code=%s\">%s</a><br />\r\n",
-                    "<a href=\"http://finance.sina.com.cn/realstock/company/%s/nc.shtml\">%s</a><br />\r\n",
-                    rank + 1, detail.Score(), detail.pb, detail.pe, detail.roe1, detail.roe3,
-                    FullCode(detail.code), detail.name)
+                    "<a href=\"http://stocks.sina.cn/sh/finance?vt=4&code=%s\">分红配股</a> " +
+                    "<a href=\"http://finance.sina.com.cn/realstock/company/%s/nc.shtml\">%s</a><br /><br />\r\n",
+                    detail.RankColor(), rank + 1, detail.Score(), detail.Pb(), detail.Pe(),
+                    detail.roe1, detail.roe3, FullCode(detail.code), FullCode(detail.code), detail.name)
     }
     fmt.Printf("</body>\r\n</html>\r\n")
 }

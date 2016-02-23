@@ -84,7 +84,7 @@ func CalculatePbPeRoe(price string, profitList string, bookValueList string) (pb
   return
 }
 
-func WriteDB(stockCode, stockName, year string, profit, bookValue, roe, grossProfitRate, netProfitRate float64) error {
+func WriteDB(stockCode, stockName, year string, profit, bookValue, roe, grossProfitRate, netProfitRate float64, raw_data string) error {
     db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/magic_formula")
     defer db.Close()
     if err != nil {
@@ -92,16 +92,16 @@ func WriteDB(stockCode, stockName, year string, profit, bookValue, roe, grossPro
         return err
     }
 
-    statement, err := db.Prepare("INSERT INTO fiscal_year_2014 SET stock_code=?,stock_name=?," +
+    statement, err := db.Prepare("INSERT INTO stock_f10 SET stock_code=?,stock_name=?," +
                                  "fiscal_year=?,earning_per_share=?,book_value_per_share=?," +
-                                 "gross_profit_rate=?,net_profit_rate=?,ROE=?")
+                                 "gross_profit_rate=?,net_profit_rate=?,ROE=?,raw_data=?")
     if err != nil {
         fmt.Printf("WriteDB db.Prepare err %s", err.Error())
         return err
     }
 
     res, err := statement.Exec(stockCode, stockName, year, profit, bookValue,
-                               grossProfitRate, netProfitRate, roe)
+                               grossProfitRate, netProfitRate, roe, raw_data)
     if err != nil {
         fmt.Printf("WriteDB db.Exec err %s", err.Error())
         return err
@@ -128,7 +128,7 @@ func ParseF10Field(list[]string, offset int, hasMore *bool) float64 {
     }
     return 0.0
 }
-func PersistF10(stockCode, stockName string, profitList, bookValueList, roeList, grossProfitRateList, netProfitRateList []string) {
+func PersistF10(stockCode, stockName string, profitList, bookValueList, roeList, grossProfitRateList, netProfitRateList []string, raw_data string) {
     for i := 0; i < len(YearList); i++ {
         hasMore := false
         year := YearList[i]
@@ -139,7 +139,7 @@ func PersistF10(stockCode, stockName string, profitList, bookValueList, roeList,
         netProfitRate := ParseF10Field(netProfitRateList, i, &hasMore)
         fmt.Printf("xxxx %.3f,%.3f,%.3f,%.3f,%.3f\r\n", profit, bookValue, roe, grossProfitRate, netProfitRate)
         if hasMore {
-            WriteDB(stockCode, stockName, year, profit, bookValue, roe, grossProfitRate, netProfitRate)
+            WriteDB(stockCode, stockName, year, profit, bookValue, roe, grossProfitRate, netProfitRate, raw_data)
             fmt.Printf("hasMore %d\r\n", i)
         }
     }
@@ -162,7 +162,7 @@ func FormatTrLine(trList *goquery.Nodes, index int) (result []string) {
   return result
 }
 
-func CrawlF10(name, price, code string) string {
+func CrawlF10(name, price, code string) {
   body, err := httpGet(GetUrlF10(code))
   if err != nil {
     log.Fatal(err)
@@ -180,40 +180,8 @@ func CrawlF10(name, price, code string) string {
   fmt.Println("毛利率", grossProfitRateList)
   netProfitRateList := FormatTrLine(&trList, 24)
   fmt.Println("净利率", netProfitRateList)
-  PersistF10(code, name, profitList, bookValueList, roeList, grossProfitRateList, netProfitRateList)
-  return ""
-  {
-    trProfit := trList.Slice(2, 3)
-    tdList := trProfit.Find("td")
-    tdCount := len(tdList)
-    for j := 0; j < tdCount; j++ {
-      td := tdList.Slice(j, j + 1)
-      if j > 0 {
-        fmt.Printf(",")
-      }
-      fmt.Printf("%s", td.Text())
-    }
-  }
-  fmt.Println()
 
-  length := len(trList)
-  for i := 0; i < length; i++ {
-    tr := trList.Slice(i, i + 1)
-    tdThList := tr.Find("th")
-    if len(tdThList) == 0 {
-      tdThList = tr.Find("td")
-    }
-
-    tdThCount := len(tdThList)
-    for j := 0; j < tdThCount; j++ {
-      tdTh := tdThList.Slice(j, j + 1)
-      fmt.Printf("%s ", tdTh.Text())
-    }
-    fmt.Printf("\r\n\r\ntdThCount=%d\r\n", tdThCount)
-    // fmt.Println(tr.Text())
-  }
-  // return body
-  return ""
+  PersistF10(code, name, profitList, bookValueList, roeList, grossProfitRateList, netProfitRateList, body)
 }
 
 func FullCode(code string) string {
@@ -291,14 +259,13 @@ func main() {
     }
     fmt.Printf("total stock codes %d\r\n", len(codes))
 
-//  for i := 0; i < 5; i++ {
-//      code := codes[i * 500 + 384]
+  //for i := 0; i < 5; i++ {
+  //    code := codes[i * 500 + 384]
     for i := 0; i < len(codes); i++ {
         code := codes[i]
         name, price := CrawlPrice(code)
         fmt.Printf("%s %s %s\r\n", code, name, price)
-        f10 := CrawlF10(name, price, code)
-        fmt.Printf("%s\r\n", f10)
+        CrawlF10(name, price, code)
         fmt.Println()
         interval := 10 + rand.Intn(50)
         time.Sleep(time.Duration(interval) * time.Millisecond)

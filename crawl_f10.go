@@ -59,31 +59,6 @@ var testF10 = `
 </table>
 `
 
-func CalculatePbPeRoe(price string, profitList string, bookValueList string) (pb float64, pe float64, roeList []float64) {
-  profits := strings.Split(profitList, ",")
-  bookValues := strings.Split(bookValueList, ",")
-  fPrice, _ := strconv.ParseFloat(price, 32)
-  pb = 0.0
-  pe = 0.0
-  for i := 1; i < len(profits); i++ {
-      profit, err := strconv.ParseFloat(profits[i], 32)
-      if err != nil {
-          return
-      }
-      bookValue, err := strconv.ParseFloat(bookValues[i], 32)
-      if err != nil {
-          return
-      }
-      if i == 1 {
-          pe = fPrice / profit
-          pb = fPrice / bookValue
-      }
-      roeList = append(roeList, profit * 100 / bookValue)
-  }
-
-  return
-}
-
 func WriteDB(stockCode, stockName, year string, profit, bookValue, roe, grossProfitRate, netProfitRate float64, raw_data string) error {
     db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/magic_formula")
     defer db.Close()
@@ -162,7 +137,7 @@ func FormatTrLine(trList *goquery.Nodes, index int) (result []string) {
   return result
 }
 
-func CrawlF10(name, price, code string) {
+func CrawlF10(name, code string) {
   body, err := httpGet(GetUrlF10(code))
   if err != nil {
     log.Fatal(err)
@@ -265,7 +240,7 @@ func main() {
         code := codes[i]
         name, price := CrawlPrice(code)
         fmt.Printf("%s %s %s\r\n", code, name, price)
-        CrawlF10(name, price, code)
+        CrawlF10(name, code)
         fmt.Println()
         interval := 10 + rand.Intn(50)
         time.Sleep(time.Duration(interval) * time.Millisecond)

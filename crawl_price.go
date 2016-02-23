@@ -31,10 +31,10 @@ func CrawlPrice(code string) (name, price, tradingDate string) {
     }
     utf8, _ := iconv.ConvertString(body, "gb2312", "utf-8")
     fields := strings.Split(utf8, ",")
-    if len(fields) < 4 {
+    if len(fields) < 32 {
         return "", "", ""
     }
-    name = fields[0]
+    name = strings.Replace(fields[0], " ", "", -1)
     idx := strings.Index(name, "\"")
     name = name[idx+1 :]
 

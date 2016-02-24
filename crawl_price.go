@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"bufio"
-	"os"
 	"strings"
 	"io/ioutil"
   iconv "github.com/djimenez/iconv-go"
@@ -34,9 +32,10 @@ func CrawlPrice(code string) (name, price, tradingDate string) {
     if len(fields) < 32 {
         return "", "", ""
     }
-    name = strings.Replace(fields[0], " ", "", -1)
+    name = fields[0]
     idx := strings.Index(name, "\"")
     name = name[idx+1 :]
+    name = strings.Replace(name, " ", "", -1)
 
     price = fields[3]
     if price == "0.00" {
@@ -80,22 +79,37 @@ func httpGet(url string) (content string, err error) {
     return string(body), nil
 }
 
-func LoadStockCodes() (stockCodes []string, err error) {
-    file, err := os.Open("./stock_codes.conf")
-    if err != nil {
-        fmt.Printf("LoadStockCodes err %v", err)
-        return stockCodes, err
-    }
-    defer file.Close()
 
-    scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
-        // fmt.Println(scanner.Text())
-        stockCodes = append(stockCodes, scanner.Text())
+type Basic struct {
+	  code string
+	  name string
+	  industry string
+}
+
+func LoadStockBasics() (stockCodes []*Basic, err error) {
+    db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/magic_formula")
+    defer db.Close()
+
+    if err != nil {
+        fmt.Printf("LoadStockBasics sql.Open err %s\r\n", err.Error())
+        return nil, err
     }
-    if err := scanner.Err(); err != nil {
-        fmt.Printf("LoadBusinessNames err %v", err)
-        return stockCodes, err
+
+    sql := `SELECT stock_code,stock_name,industry FROM stock_basic`
+
+    rows, err := db.Query(sql)
+    if err != nil {
+        fmt.Printf("LoadStockBasics err %s\r\n", err.Error())
+        return nil, err
+    }
+    for rows.Next() {
+        var basic = Basic{}
+        err = rows.Scan(&basic.code, &basic.name, &basic.industry)
+        if err != nil {
+            fmt.Printf("LoadStockBasics err %s\r\n", err.Error())
+            return nil, err
+        }
+        stockCodes = append(stockCodes, &basic)
     }
 
     return stockCodes, nil
@@ -107,20 +121,20 @@ func ClearDB(tradingDate string) error {
 
     statement, err := db.Prepare("DELETE FROM stock_price WHERE trading_date=?")
     if err != nil {
-        fmt.Printf("WriteDB db.Prepare err %s", err.Error())
+        fmt.Printf("ClearDB db.Prepare err %s", err.Error())
         return err
     }
 
     _, err = statement.Exec(tradingDate)
     if err != nil {
-        fmt.Printf("WriteDB db.Exec err %s", err.Error())
+        fmt.Printf("ClearDB db.Exec err %s", err.Error())
         return err
     }
 
     return nil
 }
 
-func WriteDB(stockCode, stockName, tradingDate string, price float64) error {
+func WriteDB(stockCode, tradingDate string, price float64) error {
     db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/magic_formula")
     defer db.Close()
     if err != nil {
@@ -128,14 +142,14 @@ func WriteDB(stockCode, stockName, tradingDate string, price float64) error {
         return err
     }
 
-    statement, err := db.Prepare("INSERT INTO stock_price SET stock_code=?,stock_name=?," +
+    statement, err := db.Prepare("INSERT INTO stock_price SET stock_code=?," +
                                  "trading_date=?,price=?")
     if err != nil {
         fmt.Printf("WriteDB db.Prepare err %s", err.Error())
         return err
     }
 
-    res, err := statement.Exec(stockCode, stockName, tradingDate, price)
+    res, err := statement.Exec(stockCode, tradingDate, price)
     if err != nil {
         fmt.Printf("WriteDB db.Exec err %s", err.Error())
         return err
@@ -152,25 +166,27 @@ func WriteDB(stockCode, stockName, tradingDate string, price float64) error {
 
 func main() {
 	  rand.Seed(int64(time.Now().Nanosecond()))
-    codes, err := LoadStockCodes()
+    basics, err := LoadStockBasics()
     if err != nil {
-        fmt.Printf("LoadStockCodes err %v", err)
+        fmt.Printf("LoadStockBasics err %v", err)
         return
     }
-    fmt.Printf("total stock codes %d\r\n", len(codes))
+    fmt.Printf("total stock basics %d\r\n", len(basics))
 
     dbClearFlag := 0
-    //for i := 0; i < 5; i++ {
-    //    code := codes[i * 500]
-    for i := 0; i < len(codes); i++ {
-        code := codes[i]
-          name, price, tradingDate := CrawlPrice(code)
+
+    for i, basic := range basics {
+        if i % 500 != 0 {
+        // if false {
+            continue
+        }
+        name, price, tradingDate := CrawlPrice(basic.code)
 
         if len(name) <= 2 {
-           fmt.Printf("CrawlError code=%s\r\n", code)
+           fmt.Printf("CrawlError code=%s\r\n", basic.code)
            continue
         }
-        fmt.Printf("CrawlOk code=%s %s %s %s\r\n", code, name, price, tradingDate)
+        fmt.Printf("CrawlOk %s %s %s %s\r\n", basic.code, name, price, tradingDate)
         fPrice, err := strconv.ParseFloat(price, 32)
         if err != nil {
             fPrice = 0.0
@@ -182,7 +198,7 @@ func main() {
              time.Sleep(1000 * time.Millisecond)
         }
 
-        WriteDB(code, name, tradingDate, fPrice)
+        WriteDB(basic.code, tradingDate, fPrice)
         interval := 100 + rand.Intn(100)
         time.Sleep(time.Duration(interval) * time.Millisecond)
     }

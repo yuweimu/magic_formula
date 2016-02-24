@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"bufio"
-	"os"
 	"strings"
 	"strconv"
 	"io/ioutil"
@@ -39,6 +37,8 @@ func CrawlPrice(code string) (name, price string) {
 	name = fields[0]
 	idx := strings.Index(name, "\"")
 	name = name[idx+1 :]
+  name = strings.Replace(name, " ", "", -1)
+
 	price = fields[3]
 	return name, price
 }
@@ -137,10 +137,10 @@ func FormatTrLine(trList *goquery.Nodes, index int) (result []string) {
   return result
 }
 
-func CrawlF10(name, code string) {
+func CrawlF10(code string) error {
   body, err := httpGet(GetUrlF10(code))
   if err != nil {
-    log.Fatal(err)
+    return err
   }
   dom, _ := goquery.ParseString(body)
   trList := dom.Find("tr")
@@ -156,7 +156,8 @@ func CrawlF10(name, code string) {
   netProfitRateList := FormatTrLine(&trList, 24)
   fmt.Println("净利率", netProfitRateList)
 
-  PersistF10(code, name, profitList, bookValueList, roeList, grossProfitRateList, netProfitRateList, body)
+  PersistF10(code, "", profitList, bookValueList, roeList, grossProfitRateList, netProfitRateList, body)
+  return nil
 }
 
 func FullCode(code string) string {
@@ -204,44 +205,61 @@ func httpGet(url string) (content string, err error) {
     return string(body), nil
 }
 
-func LoadStockCodes() (stockCodes []string, err error) {
-    file, err := os.Open("./stock_codes.conf")
-    if err != nil {
-        fmt.Printf("LoadStockCodes err %v", err)
-        return stockCodes, err
-    }
-    defer file.Close()
+type Basic struct {
+	  code string
+	  name string
+	  industry string
+}
 
-    scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
-        // fmt.Println(scanner.Text())
-        stockCodes = append(stockCodes, scanner.Text())
+func LoadStockBasics() (stockCodes []*Basic, err error) {
+    db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/magic_formula")
+    defer db.Close()
+
+    if err != nil {
+        fmt.Printf("LoadStockBasics sql.Open err %s\r\n", err.Error())
+        return nil, err
     }
-    if err := scanner.Err(); err != nil {
-        fmt.Printf("LoadBusinessNames err %v", err)
-        return stockCodes, err
+
+    sql := `SELECT stock_code,stock_name,industry FROM stock_basic`
+
+    rows, err := db.Query(sql)
+    if err != nil {
+        fmt.Printf("LoadStockBasics err %s\r\n", err.Error())
+        return nil, err
+    }
+    for rows.Next() {
+        var basic = Basic{}
+        err = rows.Scan(&basic.code, &basic.name, &basic.industry)
+        if err != nil {
+            fmt.Printf("LoadStockBasics err %s\r\n", err.Error())
+            return nil, err
+        }
+        stockCodes = append(stockCodes, &basic)
     }
 
     return stockCodes, nil
 }
 
+
 func main() {
 	  rand.Seed(int64(time.Now().Nanosecond()))
-    codes, err := LoadStockCodes()
+    basics , err := LoadStockBasics()
     if err != nil {
-        fmt.Printf("LoadStockCodes err %v", err)
+        fmt.Printf("LoadStockBasic err %v", err)
         return
     }
-    fmt.Printf("total stock codes %d\r\n", len(codes))
+    fmt.Printf("total stock basics %d\r\n", len(basics))
 
-  //for i := 0; i < 5; i++ {
-  //    code := codes[i * 500 + 384]
-    for i := 0; i < len(codes); i++ {
-        code := codes[i]
-        name, price := CrawlPrice(code)
-        fmt.Printf("%s %s %s\r\n", code, name, price)
-        CrawlF10(name, code)
-        fmt.Println()
+    for i, basic := range basics {
+        if i % 500 != 0 {
+            continue
+        }
+        err = CrawlF10(basic.code)
+        if err != nil {
+            fmt.Printf("CrawlF10 err %s %s %s\r\n", basic.code, basic.name, err.Error())
+            continue
+        }
+        fmt.Printf("CrawlF10 ok %s %s\r\n", basic.code, basic.name)
         interval := 10 + rand.Intn(50)
         time.Sleep(time.Duration(interval) * time.Millisecond)
     }

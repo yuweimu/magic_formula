@@ -7,10 +7,17 @@ if [ $week_day -eq 0 -o $week_day -eq 6 ];then
 fi
 
 ./crawl_price
-./analyze > $today.html
 
+./analyze $today > $today.html
 if [ $? -eq 0 ];then
 	mv -fv $today.html /data/nginx/html/mf/.
 else
 	rm -fv $today.html
+fi
+
+./analyze $today exbank > $today-exbank.html
+if [ $? -eq 0 ];then
+	mv -fv $today-exbank.html /data/nginx/html/mf/.
+else
+	rm -fv $today-exbank.html
 fi

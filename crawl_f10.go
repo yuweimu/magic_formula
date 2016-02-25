@@ -251,7 +251,8 @@ func main() {
     fmt.Printf("total stock basics %d\r\n", len(basics))
 
     for i, basic := range basics {
-        if i % 500 != 0 {
+        // if i % 500 != 0 {
+        if false && i % 500 != 0 {
             continue
         }
         err = CrawlF10(basic.code)

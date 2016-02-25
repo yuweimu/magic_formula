@@ -176,8 +176,8 @@ func main() {
     dbClearFlag := 0
 
     for i, basic := range basics {
-        if i % 500 != 0 {
-        // if false {
+        // if i % 500 != 0 {
+        if false && i % 500 != 0 {
             continue
         }
         name, price, tradingDate := CrawlPrice(basic.code)

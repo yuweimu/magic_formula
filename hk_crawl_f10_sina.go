@@ -91,14 +91,16 @@ type AssetInfo struct {
 	shareCount int64
 }
 
-func ParseFloatField(code, year, table string, yearly_data []interface{}, pos int) float64 {
+func ParseFloatField(code, year, field string, yearly_data []interface{}, pos int) float64 {
     if yearly_data[pos] == nil {
-        fmt.Printf("ParseFloatField nil err, code=%s year=%s table=%s pos=%d\r\n", pos)
+        fmt.Printf("ParseFloatField nil err, code=%s year=%s field=%s pos=%d\r\n",
+                   code, year, field, pos)
         return 0.0
     }
     value, err := strconv.ParseFloat(yearly_data[pos].(string), 32)
     if err != nil {
-        fmt.Printf("ParseFloatField format err, code=%s year=%s table=%s pos=%d\r\n", pos)
+        fmt.Printf("ParseFloatField format err, code=%s year=%s field=%s pos=%d\r\n",
+                   code, year, field, pos)
         return 0.00001
     }
     return value
@@ -121,11 +123,15 @@ func CrawlF10(code string) {
        }
        var asset AssetInfo
        year := yearly_data[0].(string)
-       asset.bookValue = ParseFloatField(code, year, "asset", yearly_data, 11)
+       asset.bookValue = ParseFloatField(code, year, "bookValue", yearly_data, 11)
+
        if yearly_data[25] != nil {
            strShareCount := strings.Replace(yearly_data[25].(string), "股", "", 1)
            asset.shareCount, _ = strconv.ParseInt(strShareCount, 10, 64)
            fmt.Printf("===============%s\r\n", strShareCount)
+       } else {
+           fmt.Printf("ParseField shareCount err, code=%s year=%s pos=25\r\n",
+                       code, year)
        }
        assetMap[year] = &asset
     }
@@ -159,16 +165,16 @@ func CrawlF10(code string) {
            continue
        }
        // revenue, _ := strconv.ParseFloat(yearly_data[2].(string), 32)
-       revenue := ParseFloatField(code, year, "earning", yearly_data, 2)
+       revenue := ParseFloatField(code, year, "revenue", yearly_data, 2)
 
        // grossProfit, _ := strconv.ParseFloat(yearly_data[18].(string), 32)
-       grossProfit := ParseFloatField(code, year, "earning", yearly_data, 18)
+       grossProfit := ParseFloatField(code, year, "grossProfit", yearly_data, 18)
 
        // profit, _ := strconv.ParseFloat(yearly_data[7].(string), 32)
-       profit := ParseFloatField(code, year, "earning", yearly_data, 7)
+       profit := ParseFloatField(code, year, "profit", yearly_data, 7)
 
        // divdend, _ := strconv.ParseFloat(yearly_data[8].(string), 32)
-       divdend := ParseFloatField(code, year, "earning", yearly_data, 8)
+       divdend := ParseFloatField(code, year, "divdend", yearly_data, 8)
 
        currency := yearly_data[21].(string)
 
@@ -236,7 +242,7 @@ func LoadStockBasics() (stockBasics []*Basic, err error) {
         return nil, err
     }
 
-    sql := `SELECT stock_code,stock_name,sh_connect, credit_rating FROM hk_stock_basic WHERE stock_code < '00143'`
+    sql := `SELECT stock_code,stock_name,sh_connect, credit_rating FROM hk_stock_basic`
 
     rows, err := db.Query(sql)
     if err != nil {

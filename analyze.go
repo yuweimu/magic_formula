@@ -235,14 +235,14 @@ func main() {
     for rank, detail := range validDetailList {
        //fmt.Printf("%4.3f pb=%4.3f pe=%4.3f roe1=%4.3f roe3=%4.3f %s\r\n", detail.Score(),
        //           detail.pb, detail.pe, detail.roe1, detail.roe3, detail.code)
-         fmt.Printf("<div class=\"stock\"><span style=\"color:%s\">%d</span> <span style=\"color:#38044b\">%4.3f</span> " +
-                    "<span style=\"color:#292\">pb:%4.2f</span> pe:%4.2f " +
-                    "<span style=\"color:#922\">roe1:%4.2f</span> roe3:%4.2f " + 
-                    "<span style=\"color:#929\">div:%4.2f</span> " + 
+         fmt.Printf("<div name=\"a%s\" class=\"stock\"><span style=\"color:%s\">%02d</span> <span style=\"color:#38044b\">%.3f</span> " +
+                    "<span style=\"color:#292\">pb=%.2f</span> pe=%.1f " +
+                    "<span style=\"color:#922\">roe1=%.1f</span> roe3=%.1f " + 
+                    "<span style=\"color:#929\">div=%.2f</span> " + 
                     //"<a href=\"http://stocks.sina.cn/sh/?code=%s\">%s</a><br />\r\n",
-                    "<a href=\"http://stocks.sina.cn/sh/finance?vt=4&code=%s\">分红配股</a> " +
-                    "<a href=\"http://finance.sina.com.cn/realstock/company/%s/nc.shtml\">%s</a></div>\n",
-                    detail.RankColor(), rank + 1, detail.Score(), detail.Pb(), detail.Pe(),
+                    "<a target=\"_blank\" href=\"http://stocks.sina.cn/sh/finance?vt=4&code=%s\">分红配股</a> " +
+                    "<a target=\"_blank\" href=\"http://finance.sina.com.cn/realstock/company/%s/nc.shtml\">%s</a></div>\n",
+                    detail.code, detail.RankColor(), rank + 1, detail.Score(), detail.Pb(), detail.Pe(),
                     detail.roe1, detail.roe3, detail.DivdendRate(), FullCode(detail.code),
                     FullCode(detail.code), detail.name)
          if detail.Score() > 2.0 {

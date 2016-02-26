@@ -124,15 +124,8 @@ func CrawlF10(code string) {
        var asset AssetInfo
        year := yearly_data[0].(string)
        asset.bookValue = ParseFloatField(code, year, "bookValue", yearly_data, 11)
-
-       if yearly_data[25] != nil {
-           strShareCount := strings.Replace(yearly_data[25].(string), "股", "", 1)
-           asset.shareCount, _ = strconv.ParseInt(strShareCount, 10, 64)
-           fmt.Printf("===============%s\r\n", strShareCount)
-       } else {
-           fmt.Printf("ParseField shareCount err, code=%s year=%s pos=25\r\n",
-                       code, year)
-       }
+       shareCount := ParseFloatField(code, year, "shareCount", yearly_data, 9)
+       asset.shareCount = int64(shareCount * 1000000.0)
        assetMap[year] = &asset
     }
 

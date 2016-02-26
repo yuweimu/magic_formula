@@ -1,25 +1,26 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"sort"
-	"math"
-	_ "github.com/go-sql-driver/mysql"
-	"database/sql"
+    "fmt"
+    "os"
+    "sort"
+    "math"
+    "html/template"
+    _ "github.com/go-sql-driver/mysql"
+    "database/sql"
 )
 
 func Market(code string) string {
-	  if code[0] == '0' {
-	      return "sz"
+      if code[0] == '0' {
+          return "sz"
     }
-	  return "sh"
+      return "sh"
 }
 func FullCode(code string) string {
-	  if code[0] == '0' {
-	      return "sz" + code
+      if code[0] == '0' {
+          return "sz" + code
     }
-	  return "sh" + code
+      return "sh" + code
 }
 
 type Detail struct {
@@ -37,38 +38,38 @@ type Detail struct {
     roe1 float64
 }
 func (detail Detail) Pb() float64 {
-	if detail.share_split > 0.001 {
-		return detail.share_split * detail.pb
+    if detail.share_split > 0.001 {
+        return detail.share_split * detail.pb
   }
   return detail.pb
 }
 func (detail Detail) Pe() float64 {
-	if detail.share_split > 0.01 {
-		return detail.share_split * detail.pe
+    if detail.share_split > 0.01 {
+        return detail.share_split * detail.pe
   }
   return detail.pe
 }
 
 func (detail Detail) DivdendRate() float64 {
-	if detail.price > 0.1 {
-		return 100 * detail.divdend / (detail.price * detail.share_split)
+    if detail.price > 0.1 {
+        return 100 * detail.divdend / (detail.price * detail.share_split)
   }
   return 0.0
 }
 
 func (detail Detail) RankColor() string {
-	if detail.share_split > 0.01 {
-		return "green"
+    if detail.share_split > 0.01 {
+        return "green"
   }
-	return "red"
+    return "red"
 }
 
 func (detail Detail) Score() float64 {
-	  roe1 := math.Max(detail.roe1, 0.0001)
-	  roe3 := math.Max(detail.roe3, 0.0001)
-	  pb := detail.Pb()
-	  if pb < 0.001 {
-	      pb = 10000
+      roe1 := math.Max(detail.roe1, 0.0001)
+      roe3 := math.Max(detail.roe3, 0.0001)
+      pb := detail.Pb()
+      if pb < 0.001 {
+          pb = 10000
     }
 
     return pb / (math.Pow(roe1/10, 0.8) * math.Pow(roe3/10, 0.9))
@@ -146,6 +147,10 @@ func DbLoadDetail(excludeBanks bool) (result []*Detail, err error) {
     return result, nil
 }
 
+type TemplateData struct {
+    TradingDate string
+    PageType string
+}
 var gHtmlHead = `<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
 <html>
 <head>
@@ -158,7 +163,7 @@ body{
     font-family:"Courier New", Verdana, Arial, Sans-serif;
 }
 div.stock {
-	margin:2px 2px 16px 2px;
+    margin:2px 2px 16px 2px;
 }
 @media only screen and (max-device-width: 480px) {
     body {
@@ -168,7 +173,13 @@ div.stock {
 </style>
 </head>
 <body>
-
+<a href="/mf/">Home</a>
+<a href="/mf/{{.TradingDate}}.html">非银A股</a>
+<a href="/mf/{{.TradingDate}}-exbank.html">全部A股</a>
+<a href="/mf/{{.TradingDate}}-hk-credit.html">港股通</a>
+<a href="/mf/{{.TradingDate}}-hk.html">全部H股</a><br />
+{{.TradingDate}} {{.PageType}}<br />
+<hr />
 `
 
 type DetailList []*Detail
@@ -177,42 +188,50 @@ func (s DetailList) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 type SortByScore struct{ DetailList }
 func (s SortByScore) Less(i, j int) bool {
-	  if s.DetailList[i].Score() < 0.0 {
-	      return false
+      if s.DetailList[i].Score() < 0.0 {
+          return false
     }
-	  return s.DetailList[i].Score() < s.DetailList[j].Score()
+      return s.DetailList[i].Score() < s.DetailList[j].Score()
 }
 
 func main() {
-	  tradingDate := "2015-02-22"
-	  if len(os.Args) > 1 {
+      tradingDate := "2015-02-22"
+      if len(os.Args) > 1 {
         tradingDate = os.Args[1]
     }
-	  excludeBanks := false
-	  if len(os.Args) > 2 {
+      excludeBanks := false
+      if len(os.Args) > 2 {
         excludeBanks = true
     }
 
-	  priceMap, err := DbLoadPrice(tradingDate)
-	  if err != nil {
-	      os.Exit(1)
+      priceMap, err := DbLoadPrice(tradingDate)
+      if err != nil {
+          os.Exit(1)
     }
 
     if len(*priceMap) <= 0 {
         fmt.Printf("trading date %s has no price info\r\n", tradingDate)
-	      os.Exit(1)
+          os.Exit(1)
     }
 
-	  detailList, err := DbLoadDetail(excludeBanks)
-	  if err != nil {
-	      os.Exit(1)
+      detailList, err := DbLoadDetail(excludeBanks)
+      if err != nil {
+          os.Exit(1)
     }
     if len(detailList) <= 0 {
         fmt.Printf("no detail info\r\n")
-	      os.Exit(1)
+          os.Exit(1)
     }
-    fmt.Printf("%s", gHtmlHead)
-    fmt.Printf("<a href=\"/mf/%s-hk.html\">去看看H股</a><br/><br/>", tradingDate)
+    tpl := template.New("header template")
+    tpl, _ = tpl.Parse(gHtmlHead)
+    p := TemplateData{TradingDate: tradingDate}
+    if excludeBanks {
+        p.PageType = "非银A股"
+    } else {
+        p.PageType = "全部A股"
+    }
+    tpl.Execute(os.Stdout, p)
+
     validDetailList := DetailList{}
 
     for _, detail := range detailList {

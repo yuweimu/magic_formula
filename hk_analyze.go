@@ -5,6 +5,7 @@ import (
     "os"
     "sort"
     "math"
+    "html/template"
     _ "github.com/go-sql-driver/mysql"
     "database/sql"
 )
@@ -137,6 +138,10 @@ func DbLoadDetail(creditOnly bool) (result []*Detail, err error) {
     return result, nil
 }
 
+type TemplateData struct {
+    TradingDate string // 字段名首字母必须大写
+    PageType string
+}
 var gHtmlHead = `<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
 <html>
 <head>
@@ -156,7 +161,13 @@ body{
 </style>
 </head>
 <body>
-
+<a href="/mf/">Home</a>
+<a href="/mf/{{.TradingDate}}.html">非银A股</a>
+<a href="/mf/{{.TradingDate}}-exbank.html">全部A股</a>
+<a href="/mf/{{.TradingDate}}-hk-credit.html">港股通</a>
+<a href="/mf/{{.TradingDate}}-hk.html">全部H股</a><br />
+{{.TradingDate}} {{.PageType}}<br />
+<hr />
 `
 
 type DetailList []*Detail
@@ -199,8 +210,17 @@ func main() {
         fmt.Printf("no detail info\r\n")
         os.Exit(1)
     }
-    fmt.Printf("%s", gHtmlHead)
-    fmt.Printf("<a href=\"/mf/%s.html\">去看看A股</a><br/><br/>", tradingDate)
+
+    tpl := template.New("header template")
+    tpl, _ = tpl.Parse(gHtmlHead)
+    p := TemplateData{TradingDate: tradingDate}
+    if creditOnly {
+        p.PageType = "港股通"
+    } else {
+        p.PageType = "全部H股"
+    }
+    tpl.Execute(os.Stdout, p)
+
     validDetailList := DetailList{}
 
     for _, detail := range detailList {

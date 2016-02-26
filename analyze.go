@@ -173,7 +173,7 @@ div.stock {
 </style>
 </head>
 <body>
-<a href="/mf/">Home</a>
+<a href="/mf/home">Home</a>
 <a href="/mf/{{.TradingDate}}.html">非银A股</a>
 <a href="/mf/{{.TradingDate}}-exbank.html">全部A股</a>
 <a href="/mf/{{.TradingDate}}-hk-credit.html">港股通</a>

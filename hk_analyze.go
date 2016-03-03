@@ -5,6 +5,7 @@ import (
     "os"
     "sort"
     "math"
+    "strings"
     "html/template"
     _ "github.com/go-sql-driver/mysql"
     "database/sql"
@@ -35,6 +36,9 @@ type Detail struct {
     pe float64
     roe1 float64
     roeList string
+}
+func (detail Detail) RoeList() string {
+	return strings.Replace(detail.roeList, ",", " ", -1)
 }
 func (detail Detail) Pb() float64 {
     if detail.shareSplit > 0.001 {
@@ -263,10 +267,10 @@ func main() {
          rank++
          fmt.Printf("<span style=\"color:%s\">%d</span> %4.3f <span style=\"color:#292\">pb=%4.2f</span> pe=%4.2f" +
                     " <span style=\"color:#922\">roe1=%4.2f</span> roe=%s " +
-                    "<a href=\"http://stock.finance.sina.com.cn/hkstock/quotes/%s.html\">%s</a> " +
-                    "<a href=\"http://stocks.sina.cn/hk/?code=%s&vt=4\">手机版</a><br /><br />\r\n",
+                    "<a target=\"_blank\" href=\"http://stock.finance.sina.com.cn/hkstock/quotes/%s.html\">%s</a> " +
+                    "<a target=\"_blank\" href=\"http://stocks.sina.cn/hk/?code=%s&vt=4\">手机版</a><br /><br />\r\n",
                     detail.RankColor(), rank, detail.Score(), detail.Pb(), detail.Pe(),
-                    detail.roe1, detail.roeList, detail.code, detail.name, detail.code)
+                    detail.roe1, detail.RoeList(), detail.code, detail.name, detail.code)
          if detail.Score() > 1.1 {
              break
          }

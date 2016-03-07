@@ -15,7 +15,7 @@ var gHtmlHead = `<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "
 <style type="text/css">
 body{
     font-size:14px;
-    line-height:32px;
+    line-height:22px;
     font-weight:bold;
     font-family:"Courier New", Verdana, Arial, Sans-serif;
 }
@@ -44,6 +44,9 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
         file := files[fileCount - 1 - i]
 	    fmt.Fprintf(w, "<a href=\"/mf/%s\">%s</a><br />\r\n", file.Name(),
 	                strings.Replace(file.Name(), ".html", "", 1))
+	    if strings.Index(file.Name(), "exbank") > 0 {
+	          fmt.Fprintln(w, "<br />")
+        }
     }
 	fmt.Fprintln(w, "</body>\r\n</html>\r\n")
 }
